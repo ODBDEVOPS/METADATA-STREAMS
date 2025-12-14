@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Data - Rétro-Futuriste</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Orbitron:wght@500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- 1. VARIABLES & RESET (Thème CRT) --- */
+        :root {
+            --bg-deep: #000000;
+            --color-crt-green: #00ff66; /* Couleur principale */
+            --color-crt-cyan: #00ffff;
+            --text-dim: #007733;
+            
+            --font-display: 'Orbitron', sans-serif;
+            --font-mono: 'VT323', monospace;
+            
+            --spacer-md: 20px;
+            --spacer-lg: 50px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--color-crt-green);
+            font-family: var(--font-mono);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* --- 2. EFFET CRT (Scanlines + Distorsion) --- */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9000;
+            opacity: 0.15;
+            /* Scanlines */
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+        }
+
+        /* Légère distorsion d'écran (Animation subtle) */
+        @keyframes crt-flicker {
+            0% { transform: translate(0.5px, 0.5px); filter: blur(0.5px); }
+            50% { transform: translate(-0.5px, -0.5px); filter: blur(0.5px); }
+            100% { transform: translate(0.5px, 0.5px); filter: blur(0.5px); }
+        }
+        body { animation: crt-flicker 10s infinite alternate; }
+
+        h1, h2, h3 {
+            font-family: var(--font-display);
+            text-shadow: 0 0 5px var(--color-crt-green);
+        }
+
+        /* --- 3. DASHBOARD ET KPI (Bento-like) --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: var(--spacer-lg) 0;
+        }
+
+        .kpi-card {
+            background: rgba(0, 255, 102, 0.05);
+            border: 1px solid var(--text-dim);
+            padding: 15px;
+            box-shadow: 0 0 5px rgba(0, 255, 102, 0.5);
+            transition: all 0.3s;
+        }
+        .kpi-card:hover {
+            border-color: var(--color-crt-green);
+            transform: translateY(-3px);
+            box-shadow: 0 0 15px var(--color-crt-cyan);
+        }
+
+        .kpi-card h3 {
+            font-size: 1rem;
+            color: var(--color-crt-cyan);
+            margin-bottom: 5px;
+        }
+
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        /* --- 4. TABLEAU DE DONNÉES (RÉACTIF) --- */
+        .data-table-container {
+            margin-top: var(--spacer-lg);
+            border: 1px solid var(--text-dim);
+            background: rgba(0, 255, 102, 0.02);
+            overflow: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th, .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--text-dim);
+        }
+
+        .data-table th {
+            color: var(--color-crt-cyan);
+            cursor: pointer;
+            position: sticky; /* Sticky Header */
+            top: 0;
+            background: var(--bg-deep);
+            z-index: 10;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(0, 255, 102, 0.1);
+        }
+
+        /* Barre de progression de chargement (Simulée) */
+        .loading-bar {
+            height: 3px;
+            width: 0%;
+            background: var(--color-crt-green);
+            transition: width 1s linear;
+        }
+
+        /* --- 5. FICHES DE DONNÉES (Statut et Barres SVG) --- */
+        .node-detail {
+            margin-top: var(--spacer-lg);
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 40px;
+        }
+
+        .node-meta h3 {
+            border-bottom: 1px solid var(--text-dim);
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .progress-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-line span {
+            width: 100px;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .progress-bar {
+            flex-grow: 1;
+            height: 5px;
+            background: var(--text-dim);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0; /* Animé par JS */
+            background: var(--color-crt-cyan);
+            transition: width 1.5s ease-out;
+        }
+
+        /* --- 6. ARBRE DE BASE DE DONNÉES (Arborescence SVG/CSS) --- */
+        .database-tree {
+            padding-top: var(--spacer-lg);
+            margin-top: var(--spacer-lg);
+            border-top: 1px solid var(--text-dim);
+            text-align: center;
+        }
+
+        .tree-node {
+            display: inline-block;
+            padding: 5px 10px;
+            border: 1px solid var(--color-crt-green);
+            background: rgba(0, 255, 102, 0.1);
+            position: relative;
+            margin: 20px 0;
+            transition: background 0.3s;
+        }
+
+        .tree-node:hover { background: rgba(0, 255, 102, 0.3); }
+
+        .tree-branch {
+            position: relative;
+            height: 20px;
+            width: 2px;
+            background: var(--text-dim);
+            margin: 0 auto;
+        }
+        
+        .tree-level {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            position: relative;
+        }
+        
+        .tree-level:not(:last-child) .tree-node::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            width: 2px;
+            height: 20px;
+            background: var(--text-dim);
+            transform: translateX(-50%);
+        }
+        
+        .tree-level-line {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--text-dim);
+            z-index: -1;
+        }
+
+        /* --- 7. CURSEUR (adapté au thème) --- */
+        .cursor-dot, .cursor-circle {
+            position: fixed;
+            top: 0;
+            left: 0;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .cursor-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--color-crt-cyan);
+            box-shadow: 0 0 5px var(--color-crt-cyan);
+        }
+
+        .cursor-circle {
+            display: none; /* Curseur simple pour le style rétro */
+        }
+
+        /* --- 8. RESPONSIVITÉ --- */
+        @media (max-width: 1024px) {
+            .dashboard-grid { grid-template-columns: repeat(2, 1fr); }
+            .node-detail { grid-template-columns: 1fr; }
+            .tree-level { flex-wrap: wrap; gap: 40px; }
+        }
+        @media (max-width: 600px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="crt-overlay"></div>
+    <div class="cursor-dot"></div>
+
+    <div class="container">
+        <h1 style="font-size: 3rem; padding-top: 40px;">// MÉTADATA STREAMS</h1>
+        <p style="color: var(--text-dim); margin-bottom: 20px;">LAST PULL: 2025-12-14 20:48:11 CET</p>
+
+        <div class="dashboard-grid">
+            <div class="kpi-card">
+                <h3>TOTAL ENTITÉS</h3>
+                <div class="kpi-value">2,490</div>
+                <p style="color: var(--text-dim);">Fiabilité moyenne : 89%</p>
+            </div>
+            <div class="kpi-card">
+                <h3>FLUX ACTIFS</h3>
+                <div class="kpi-value">12</div>
+                <p style="color: var(--text-dim);">Latence critique : 4ms</p>
+            </div>
+            <div class="kpi-card">
+                <h3>TAILLE BDD (TB)</h3>
+                <div class="kpi-value">5.64</div>
+                <p style="color: var(--text-dim);">Croissance : +0.2 TB/mois</p>
+            </div>
+            <div class="kpi-card">
+                <h3>ERREURS PAR HR</h3>
+                <div class="kpi-value">0.003%</div>
+                <p style="color: var(--color-crt-cyan);">Seuil de tolérance atteint</p>
+            </div>
+        </div>
+
+        <h2 style="font-family: var(--font-display); margin-top: 40px;">// JOURNAL DES TRANSACTIONS</h2>
+        <div class="data-table-container">
+            <div class="loading-bar" id="loadingBar"></div>
+            <table class="data-table" id="dataTable">
+                <thead>
+                    <tr>
+                        <th data-sort="id">ID Transaction</th>
+                        <th data-sort="source">Source</th>
+                        <th data-sort="destination">Destination</th>
+                        <th data-sort="value">Valeur (€)</th>
+                        <th data-sort="status">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--color-crt-cyan);">
+                            <span id="paginationInfo"></span>
+                            <button onclick="changePage(-1)" style="background:none; border: 1px solid var(--color-crt-green); color:inherit; padding: 5px; margin-left: 10px;">&lt; PRÉCÉDENT</button>
+                            <button onclick="changePage(1)" style="background:none; border: 1px solid var(--color-crt-green); color:inherit; padding: 5px; margin-left: 10px;">SUIVANT &gt;</button>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <h2 style="font-family: var(--font-display); margin-top: 60px;">// DÉTAIL DU NŒUD 7A9</h2>
+        <div class="node-detail">
+            <div class="node-meta">
+                <h3>FICHE TECHNIQUE</h3>
+                <p><strong>Nœud ID :</strong> 7A9</p>
+                <p><strong>Localisation :</strong> Sector 4 - Array Alpha</p>
+                <p><strong>Dernière Synchro :</strong> 1 min ago</p>
+                <p><strong>Type de Donnée :</strong> Séries Temporelles</p>
+            </div>
+            <div class="node-status">
+                <h3>STATUT & INTÉGRITÉ</h3>
+                
+                <div class="progress-line">
+                    <span>Fiabilité</span>
+                    <div class="progress-bar"><div class="progress-fill" id="fillReliability" data-percent="85"></div></div>
+                    <span style="width: auto; margin-left: 10px;">85%</span>
+                </div>
+                
+                <div class="progress-line">
+                    <span>Latence</span>
+                    <div class="progress-bar"><div class="progress-fill" id="fillLatency" data-percent="95"></div></div>
+                    <span style="width: auto; margin-left: 10px;">95%</span>
+                </div>
+                
+                <div class="progress-line">
+                    <span>Complétude</span>
+                    <div class="progress-bar"><div class="progress-fill" id="fillCompleteness" data-percent="55"></div></div>
+                    <span style="width: auto; margin-left: 10px; color: var(--color-crt-cyan);">55% (Alerte)</span>
+                </div>
+
+                <p style="margin-top: 20px; color: var(--text-dim); font-size: 0.9rem;">Remarque : La complétude des données est en deçà du seuil. Recommander un re-pull immédiat.</p>
+            </div>
+        </div>
+
+        <h2 style="font-family: var(--font-display); margin-top: 60px;">// HIERARCHIE BDD</h2>
+        <div class="database-tree">
+            
+            <div class="tree-level">
+                <div class="tree-node">ROOT DB (MAIN)</div>
+            </div>
+            <div class="tree-level" style="padding-top: 20px;">
+                <div class="tree-level-line"></div>
+                <div class="tree-node">SCHEMA A</div>
+                <div class="tree-node">SCHEMA B</div>
+                <div class="tree-node">SCHEMA C</div>
+            </div>
+            <div class="tree-level" style="padding-top: 20px;">
+                <div class="tree-node">TABLE 1</div>
+                <div class="tree-node">TABLE 2</div>
+                <div class="tree-node">TABLE 3</div>
+            </div>
+        </div>
+
+        <footer style="padding: 40px 0; text-align: center; font-size: 0.8rem; color: var(--text-dim);">
+            FIN DE FLUX. REINITIALISATION SYSTÈME.
+        </footer>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT VANILLA ---
+
+        // 1. Curseur (simple dot pour le style rétro)
+        document.addEventListener('mousemove', (e) => {
+            document.querySelector('.cursor-dot').style.left = e.clientX + 'px';
+            document.querySelector('.cursor-dot').style.top = e.clientY + 'px';
+        });
+
+        // 2. Données Simulees pour le Tableau
+        const rawData = [
+            { id: 'T00981', source: 'Node 7A9', destination: 'Central B', value: 12500.50, status: 'Completed' },
+            { id: 'T00982', source: 'Node 5D2', destination: 'Central B', value: 870.99, status: 'Pending' },
+            { id: 'T00983', source: 'Node 1B4', destination: 'Archive A', value: 2345.00, status: 'Failed' },
+            { id: 'T00984', source: 'Node 7A9', destination: 'Archive A', value: 50000.00, status: 'Completed' },
+            { id: 'T00985', source: 'Node 3C1', destination: 'Central B', value: 12.30, status: 'Completed' },
+            { id: 'T00986', source: 'Node 5D2', destination: 'Archive A', value: 999.00, status: 'Pending' },
+            { id: 'T00987', source: 'Node 7A9', destination: 'Central B', value: 100.00, status: 'Completed' },
+            { id: 'T00988', source: 'Node 1B4', destination: 'Central B', value: 3456.78, status: 'Completed' },
+            { id: 'T00989', source: 'Node 3C1', destination: 'Archive A', value: 789.00, status: 'Pending' },
+            { id: 'T00990', source: 'Node 5D2', destination: 'Central B', value: 1500.00, status: 'Completed' },
+            // Ajouter d'autres données pour tester la pagination
+            { id: 'T00991', source: 'Node 7A9', destination: 'Archive A', value: 450.00, status: 'Failed' },
+            { id: 'T00992', source: 'Node 1B4', destination: 'Central B', value: 2000.00, status: 'Completed' },
+            { id: 'T00993', source: 'Node 5D2', destination: 'Archive A', value: 1800.00, status: 'Completed' },
+        ];
+        
+        let currentData = [...rawData];
+        let sortColumn = null;
+        let sortDirection = 'asc';
+        let currentPage = 1;
+        const rowsPerPage = 5;
+
+        const tableBody = document.querySelector('#dataTable tbody');
+        const headerCells = document.querySelectorAll('#dataTable th');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const loadingBar = document.getElementById('loadingBar');
+
+
+        // 3. Fonction de rendu du Tableau (inclut Pagination)
+        function renderTable() {
+            // Afficher la barre de chargement simulée
+            loadingBar.style.width = '20%';
+            
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+            const paginatedData = currentData.slice(start, end);
+            
+            tableBody.innerHTML = '';
+            
+            if (paginatedData.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">AUCUNE DONNÉE TROUVÉE</td></tr>';
+                loadingBar.style.width = '100%';
+                return;
+            }
+
+            paginatedData.forEach(item => {
+                const row = document.createElement('tr');
+                // Colorer le statut
+                let statusColor = 'var(--color-crt-green)';
+                if (item.status === 'Pending') statusColor = 'var(--color-crt-cyan)';
+                if (item.status === 'Failed') statusColor = 'red';
+
+                row.innerHTML = `
+                    <td>${item.id}</td>
+                    <td>${item.source}</td>
+                    <td>${item.destination}</td>
+                    <td>${item.value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ")}</td>
+                    <td style="color: ${statusColor};">${item.status}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Mettre à jour l'info de pagination
+            const totalPages = Math.ceil(currentData.length / rowsPerPage);
+            paginationInfo.textContent = `Page ${currentPage} sur ${totalPages} (${currentData.length} résultats)`;
+
+            // Fin de la barre de chargement
+            loadingBar.style.width = '100%'; 
+        }
+
+        // 4. Fonction de Tri
+        function handleSort(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            
+            currentData.sort((a, b) => {
+                const valA = a[column];
+                const valB = b[column];
+
+                if (typeof valA === 'number') {
+                    return sortDirection === 'asc' ? valA - valB : valB - valA;
+                } else {
+                    const comparison = valA.localeCompare(valB);
+                    return sortDirection === 'asc' ? comparison : -comparison;
+                }
+            });
+
+            // Réinitialiser la page et re-rendre
+            currentPage = 1;
+            renderTable();
+        }
+
+        headerCells.forEach(th => {
+            th.addEventListener('click', () => handleSort(th.dataset.sort));
+        });
+
+        // 5. Fonction de Pagination
+        function changePage(direction) {
+            const totalPages = Math.ceil(currentData.length / rowsPerPage);
+            const newPage = currentPage + direction;
+
+            if (newPage > 0 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderTable();
+            }
+        }
+        
+        // 6. Animation des Barres de Progression (Fiches de Données)
+        function animateProgressBars() {
+            document.querySelectorAll('.progress-fill').forEach(fill => {
+                const percent = fill.dataset.percent;
+                // Décalage pour l'animation au chargement
+                setTimeout(() => {
+                    fill.style.width = percent + '%';
+                }, 100); 
+            });
+        }
+
+        // Initialisation de la démo
+        window.onload = () => {
+            renderTable();
+            animateProgressBars();
+        };
+
+    </script>
+</body>
+</html>
